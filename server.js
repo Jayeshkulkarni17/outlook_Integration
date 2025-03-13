@@ -9,9 +9,9 @@ app.use(express.json());
 app.use(cors());
 
 app.post("/get-access-token", async (req, res) => {
-  const tenantId = "48b12b95-fafa-4dd2-b3fc-a40a38506f93";
-  const clientId = "38434d63-6a09-4f6f-8714-cbce49950a69";
-  const clientSecret = "mXf8Q~e2tgoIU63s5y4ksqfr0hLnOBqYCOconazc";
+  const tenantId = process.env.AZURE_AD_TENANT_ID;
+  const clientId = process.env.AZURE_AD_CLIENT_ID;
+  const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     return res.status(500).json({ error: "Missing Azure AD credentials" });
@@ -32,7 +32,9 @@ app.post("/get-access-token", async (req, res) => {
       },
     });
 
-    res.json({ access_token: response.data.access_token });
+    res.json({
+      access_token: response.data.access_token,
+    });
   } catch (error) {
     console.error(
       "Error generating access token:",

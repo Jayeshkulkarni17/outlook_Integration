@@ -1,12 +1,12 @@
 import React from "react";
 import { Grid, Paper, Typography } from "@mui/material";
 import TodaysMeetings from "./post/todayMeetingList";
-import CredentialsForm from "./post/credentialsForm";
 import { useSession } from "next-auth/react";
 const Index = () => {
   const { data: session } = useSession();
   if (session) {
-    console.log("Access Token:", session.accessToken);
+    // console.log("Access Token:", session.accessToken);
+    // console.log("refresh Token", session.refreshToken);
     sessionStorage.setItem("outlookAccessToken", session.accessToken);
   }
   return (

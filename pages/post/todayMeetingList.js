@@ -5,10 +5,9 @@ import {
   CircularProgress,
   Avatar,
   Button,
+  Dialog,
 } from "@mui/material";
 import { GroupsOutlined as GroupsOutlinedIcon } from "@mui/icons-material";
-import { Dialog } from "@mui/material";
-import CredentialsForm from "../post/credentialsForm";
 
 const TodaysMeetings = ({ accountId }) => {
   const [meetings, setMeetings] = useState([]);
@@ -66,11 +65,9 @@ const TodaysMeetings = ({ accountId }) => {
     fetchAllMeetings();
   }, []);
 
-  // Open the modal for Outlook login
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
 
-  // Handle successful login (store access token and fetch meetings)
   const handleLoginSuccess = (accessToken) => {
     sessionStorage.setItem("outlookAccessToken", accessToken);
     setShowCredentialsButton(false);
@@ -78,13 +75,28 @@ const TodaysMeetings = ({ accountId }) => {
     handleCloseModal();
   };
 
-  // Function to format date and time in the user's local timezone
+  const handleLogin = () => {
+    window.location.href = "/api/auth/initiatelogin";
+  };
+
   const formatLocalTime = (dateTime) => {
     return new Date(dateTime).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
     });
   };
+
+  // Check for access token in the URL after redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get("accessToken");
+
+    if (accessToken) {
+      handleLoginSuccess(accessToken);
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   return (
     <Box>
@@ -193,10 +205,28 @@ const TodaysMeetings = ({ accountId }) => {
         maxWidth="sm"
         fullWidth
       >
-        <CredentialsForm
-          onClose={handleCloseModal}
-          onLoginSuccess={handleLoginSuccess}
-        />
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Connect Outlook Calendar
+          </Typography>
+          <Typography variant="body1" color="text.secondary" gutterBottom>
+            Click the button below to sign in with your Microsoft account and
+            connect your Outlook Calendar.
+          </Typography>
+          <Button
+            variant="contained"
+            fullWidth
+            sx={{
+              mt: 2,
+              bgcolor: "#8B5CF6",
+              color: "#fff",
+              "&:hover": { bgcolor: "#7C3AED" },
+            }}
+            onClick={handleLogin}
+          >
+            Sign In with Microsoft
+          </Button>
+        </Box>
       </Dialog>
     </Box>
   );

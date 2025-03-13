@@ -1,3 +1,4 @@
+// pages/api/auth/callback/azure-ad.js
 import axios from "axios";
 
 export default async function handler(req, res) {
@@ -8,9 +9,10 @@ export default async function handler(req, res) {
   }
 
   try {
+    const tenantId = process.env.AZURE_AD_TENANT_ID;
     // Exchange the code for an access token
     const tokenResponse = await axios.post(
-      "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
       new URLSearchParams({
         client_id: process.env.AZURE_AD_CLIENT_ID,
         client_secret: process.env.AZURE_AD_CLIENT_SECRET,
@@ -27,8 +29,8 @@ export default async function handler(req, res) {
 
     const { access_token } = tokenResponse.data;
 
-    // Send the access token back to the client
-    res.status(200).json({ access_token });
+    // Redirect to the home page with the access token as a query parameter
+    res.redirect(`/?accessToken=${access_token}`);
   } catch (error) {
     console.error(
       "Error during token exchange:",

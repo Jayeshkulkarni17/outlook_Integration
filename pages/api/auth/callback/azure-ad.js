@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     const tenantId = process.env.AZURE_AD_TENANT_ID;
     // Exchange the code for an access token
     const tokenResponse = await axios.post(
-      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+      `https://login.microsoftonline.com/common/oauth2/v2.0/token`,
       new URLSearchParams({
         client_id: process.env.AZURE_AD_CLIENT_ID,
         client_secret: process.env.AZURE_AD_CLIENT_SECRET,

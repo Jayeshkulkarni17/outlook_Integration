@@ -17,7 +17,7 @@ app.post("/get-access-token", async (req, res) => {
     return res.status(500).json({ error: "Missing Azure AD credentials" });
   }
 
-  const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+  const url = `https://login.microsoftonline.com/common/oauth2/v2.0/token`;
 
   const params = new URLSearchParams();
   params.append("client_id", clientId);

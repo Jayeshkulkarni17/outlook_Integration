@@ -6,7 +6,7 @@ export const getAccessToken = async () => {
   const clientId = process.env.AZURE_AD_CLIENT_ID;
   const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
 
-  const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+  const url = `https://login.microsoftonline.com/common/oauth2/v2.0/token`;
 
   const params = new URLSearchParams();
   params.append(process.env.AZURE_AD_CLIENT_ID, clientId);
@@ -20,27 +20,6 @@ export const getAccessToken = async () => {
   } catch (error) {
     console.error(
       "Error generating access token:",
-      error.response?.data || error.message
-    );
-    throw error;
-  }
-};
-
-// Fetch calendar events for a user
-export const fetchCalendarEvents = async (accessToken, userId) => {
-  const url = `https://graph.microsoft.com/v1.0/users/${userId}/calendar/events`;
-
-  try {
-    const response = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    return response.data.value;
-  } catch (error) {
-    console.error(
-      "Error fetching calendar events:",
       error.response?.data || error.message
     );
     throw error;

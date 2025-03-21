@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   );
   const scope = encodeURIComponent("Calendars.Read");
 
-  const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}&response_mode=query`;
+  const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}&response_mode=query`;
 
   // Redirect the user to the Microsoft login page
   res.redirect(authUrl);

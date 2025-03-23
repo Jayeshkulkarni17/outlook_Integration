@@ -8,20 +8,29 @@ import {
   Dialog,
 } from "@mui/material";
 import { GroupsOutlined as GroupsOutlinedIcon } from "@mui/icons-material";
+import refreshAccessToken from "../api/auth/refreshtoken";
 
 const TodaysMeetings = ({ accountId }) => {
   const [meetings, setMeetings] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [showCredentialsButton, setShowCredentialsButton] = useState(false);
   const [openModal, setOpenModal] = useState(false);
 
   const fetchAllMeetings = async () => {
-    const accessToken = sessionStorage.getItem("outlookAccessToken");
+    let accessToken = localStorage.getItem("outlookAccessToken");
+    const tokenExpiry = localStorage.getItem("outlookTokenExpiry");
 
-    if (!accessToken) {
-      setShowCredentialsButton(true);
-      setIsLoading(false);
-      return;
+    // Check if the access token is expired
+    if (!accessToken || Date.now() >= tokenExpiry) {
+      try {
+        // Refresh the access token
+        accessToken = await refreshAccessToken();
+      } catch (error) {
+        console.error("Error refreshing access token:", error);
+        setShowCredentialsButton(true); // Show the "Enter Credentials" button
+        setIsLoading(false);
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -61,15 +70,80 @@ const TodaysMeetings = ({ accountId }) => {
     }
   };
 
+  // Check for tokens in the URL after redirect
   useEffect(() => {
-    fetchAllMeetings();
+    const initialize = async () => {
+      console.log("Checking for tokens in URL..."); // Debugging
+      const urlParams = new URLSearchParams(window.location.search);
+      const accessToken = urlParams.get("accessToken");
+      const refreshToken = urlParams.get("refreshToken");
+      const expiresIn = urlParams.get("expiresIn");
+
+      console.log("URL Params:", { accessToken, refreshToken, expiresIn }); // Debugging
+
+      if (accessToken && refreshToken && expiresIn) {
+        // Store tokens in sessionStorage
+        localStorage.setItem("outlookAccessToken", accessToken);
+        localStorage.setItem("outlookRefreshToken", refreshToken);
+        localStorage.setItem(
+          "outlookTokenExpiry",
+          Date.now() + expiresIn * 1000
+        );
+
+        console.log("Tokens stored in sessionStorage"); // Debugging
+
+        // Clean up the URL
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+
+        // Fetch meetings
+        await fetchAllMeetings();
+      } else {
+        // If no tokens are found, check if there's an existing access token
+        const existingAccessToken = localStorage.getItem("outlookAccessToken");
+        const existingRefreshToken = localStorage.getItem(
+          "outlookRefreshToken"
+        );
+        const existingTokenExpiry = localStorage.getItem("outlookTokenExpiry");
+
+        if (
+          existingAccessToken &&
+          existingRefreshToken &&
+          existingTokenExpiry
+        ) {
+          // Check if the existing access token is expired
+          if (Date.now() >= existingTokenExpiry) {
+            try {
+              // Refresh the access token
+              const newAccessToken = await refreshAccessToken();
+              localStorage.setItem("outlookAccessToken", newAccessToken);
+              await fetchAllMeetings();
+            } catch (error) {
+              console.error("Error refreshing access token:", error);
+              setShowCredentialsButton(true); // Show the "Enter Credentials" button
+            }
+          } else {
+            // If the existing access token is still valid, fetch meetings
+            await fetchAllMeetings();
+          }
+        } else {
+          // If no access token is found, show the "Enter Credentials" button
+          setShowCredentialsButton(true);
+        }
+      }
+    };
+
+    initialize();
   }, []);
 
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
 
   const handleLoginSuccess = (accessToken) => {
-    sessionStorage.setItem("outlookAccessToken", accessToken);
+    localStorage.setItem("outlookAccessToken", accessToken);
     setShowCredentialsButton(false);
     fetchAllMeetings();
     handleCloseModal();
@@ -97,7 +171,6 @@ const TodaysMeetings = ({ accountId }) => {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
-
   return (
     <Box>
       <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -177,7 +250,7 @@ const TodaysMeetings = ({ accountId }) => {
         </Box>
       ) : (
         <Typography color="text.secondary">
-          No meetings scheduled for yesterday or today.
+          No meetings scheduled for today.
         </Typography>
       )}
 

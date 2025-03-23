@@ -9,8 +9,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const tenantId = process.env.AZURE_AD_TENANT_ID;
-    // Exchange the code for an access token
+    // Exchange the code for an access token and refresh token
     const tokenResponse = await axios.post(
       `https://login.microsoftonline.com/common/oauth2/v2.0/token`,
       new URLSearchParams({
@@ -27,10 +26,16 @@ export default async function handler(req, res) {
       }
     );
 
-    const { access_token } = tokenResponse.data;
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
-    // Redirect to the home page with the access token as a query parameter
-    res.redirect(`/?accessToken=${access_token}`);
+    if (!refresh_token) {
+      throw new Error("No refresh token returned");
+    }
+
+    // Redirect to the client with tokens
+    res.redirect(
+      `/?accessToken=${access_token}&refreshToken=${refresh_token}&expiresIn=${expires_in}`
+    );
   } catch (error) {
     console.error(
       "Error during token exchange:",

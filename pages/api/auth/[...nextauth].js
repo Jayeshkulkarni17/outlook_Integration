@@ -9,7 +9,7 @@ export default NextAuth({
       tenantId: process.env.AZURE_AD_TENANT_ID,
       authorization: {
         params: {
-          scope: "openid profile email Calendars.Read User.Read",
+          scope: "openid profile email Calendars.Read User.Read offline_access",
         },
       },
     }),

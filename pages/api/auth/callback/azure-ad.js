@@ -2,14 +2,18 @@
 import axios from "axios";
 
 export default async function handler(req, res) {
-  const { code } = req.query;
+  const { code, error, error_description } = req.query;
+
+  if (error) {
+    console.error("Azure AD error:", error_description);
+    return res.redirect(`/?error=${encodeURIComponent(error_description)}`);
+  }
 
   if (!code) {
     return res.status(400).json({ error: "Authorization code is missing" });
   }
 
   try {
-    // Exchange the code for an access token and refresh token
     const tokenResponse = await axios.post(
       `https://login.microsoftonline.com/common/oauth2/v2.0/token`,
       new URLSearchParams({
@@ -18,6 +22,7 @@ export default async function handler(req, res) {
         code,
         redirect_uri: process.env.AZURE_AD_REDIRECT_URI,
         grant_type: "authorization_code",
+        scope: "Calendars.Read offline_access",
       }),
       {
         headers: {
@@ -28,19 +33,33 @@ export default async function handler(req, res) {
 
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
-    if (!refresh_token) {
-      throw new Error("No refresh token returned");
+    if (!access_token || !refresh_token) {
+      throw new Error("Tokens not received from Microsoft");
     }
 
-    // Redirect to the client with tokens
-    res.redirect(
-      `/?accessToken=${access_token}&refreshToken=${refresh_token}&expiresIn=${expires_in}`
-    );
+    // Calculate expiry time with buffer (5 minutes before actual expiry)
+    const expiryTime = Date.now() + (expires_in - 300) * 1000;
+
+    // Return HTML that stores tokens and redirects
+    res.setHeader("Content-Type", "text/html");
+    res.send(`
+      <html>
+        <head>
+          <script>
+            localStorage.setItem("outlookAccessToken", "${access_token}");
+            localStorage.setItem("outlookRefreshToken", "${refresh_token}");
+            localStorage.setItem("outlookTokenExpiry", "${expiryTime}");
+            window.location.href = "/";
+          </script>
+        </head>
+        <body>Redirecting...</body>
+      </html>
+    `);
   } catch (error) {
     console.error(
       "Error during token exchange:",
       error.response?.data || error.message
     );
-    res.status(500).json({ error: "Failed to authenticate" });
+    res.redirect(`/?error=auth_failed`);
   }
 }

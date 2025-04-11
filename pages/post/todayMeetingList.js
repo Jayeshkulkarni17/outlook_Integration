@@ -91,39 +91,30 @@ const TodaysMeetings = ({ accountId }) => {
   // Initialize component and check auth status
   useEffect(() => {
     const initialize = async () => {
-      console.log("Initializing component...");
+      console.log("Checking for tokens in URL...");
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const urlaccessToken = hashParams.get("accessToken");
+      const refreshToken = hashParams.get("refreshToken");
+      const expiresIn = hashParams.get("expiresIn");
 
-      // First check URL for tokens (after redirect)
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      const urlAccessToken = params.get("accessToken");
-      const urlRefreshToken = params.get("refreshToken");
-      const urlExpiresIn = params.get("expiresIn");
+      console.log("URL Params:", { urlaccessToken, refreshToken, expiresIn });
 
-      if (urlAccessToken && urlRefreshToken && urlExpiresIn) {
-        console.log("Found tokens in URL");
-        const expiryTime = Date.now() + (parseInt(urlExpiresIn) - 300) * 1000;
+      if (urlaccessToken && refreshToken && expiresIn) {
+        const expiryTime = Date.now() + (parseInt(expiresIn) - 300) * 1000;
 
-        localStorage.setItem("outlookAccessToken", urlAccessToken);
-        localStorage.setItem("outlookRefreshToken", urlRefreshToken);
+        localStorage.setItem("outlookAccessToken", urlaccessToken);
+        localStorage.setItem("outlookRefreshToken", refreshToken);
         localStorage.setItem("outlookTokenExpiry", expiryTime.toString());
 
         // Clean up URL
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
+        window.location.hash = "";
       }
 
       // Check authentication status
-      console.log("Checking auth status...");
       const { isAuthenticated } = await checkAuthStatus();
-      console.log("Is authenticated:", isAuthenticated);
       setShowCredentialsButton(!isAuthenticated);
 
       if (isAuthenticated) {
-        console.log("Fetching meetings...");
         await fetchAllMeetings();
       }
     };
@@ -149,7 +140,6 @@ const TodaysMeetings = ({ accountId }) => {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Format time for display
   const formatLocalTime = (dateTime) => {
     return new Date(dateTime).toLocaleTimeString([], {
       hour: "2-digit",
@@ -157,16 +147,13 @@ const TodaysMeetings = ({ accountId }) => {
     });
   };
 
-  // Handle modal open/close
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
 
-  // Handle login redirect
   const handleLogin = () => {
     window.location.href = "/api/auth/initiatelogin";
   };
 
-  // Handle logout
   const handleLogout = () => {
     localStorage.removeItem("outlookAccessToken");
     localStorage.removeItem("outlookRefreshToken");
@@ -188,9 +175,7 @@ const TodaysMeetings = ({ accountId }) => {
       </Box>
 
       {isLoading ? (
-        <Box display="flex" justifyContent="center" mt={2}>
-          <CircularProgress />
-        </Box>
+        <CircularProgress />
       ) : meetings.length > 0 ? (
         <Box>
           {meetings.map((meeting, index) => {
@@ -221,7 +206,7 @@ const TodaysMeetings = ({ accountId }) => {
 
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="body1" fontWeight="bold">
-                    {meeting.subject || "No Subject"}
+                    {meeting.subject}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {formatLocalTime(meeting.start.dateTime)} -{" "}

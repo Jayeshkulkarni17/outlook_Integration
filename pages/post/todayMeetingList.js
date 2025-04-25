@@ -92,7 +92,9 @@ const TodaysMeetings = ({ accountId }) => {
   useEffect(() => {
     const initialize = async () => {
       console.log("Checking for tokens in URL...");
+      console.log(window.location.href);
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      console.log(window.location.hash.substring(1));
       const urlaccessToken = hashParams.get("accessToken");
       const refreshToken = hashParams.get("refreshToken");
       const expiresIn = hashParams.get("expiresIn");
@@ -101,6 +103,8 @@ const TodaysMeetings = ({ accountId }) => {
 
       if (urlaccessToken && refreshToken && expiresIn) {
         const expiryTime = Date.now() + (parseInt(expiresIn) - 300) * 1000;
+
+        
 
         localStorage.setItem("outlookAccessToken", urlaccessToken);
         localStorage.setItem("outlookRefreshToken", refreshToken);
@@ -155,6 +159,9 @@ const TodaysMeetings = ({ accountId }) => {
   };
 
   const handleLogout = () => {
+    window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(
+      "http://localhost:3000"
+    )}`;
     localStorage.removeItem("outlookAccessToken");
     localStorage.removeItem("outlookRefreshToken");
     localStorage.removeItem("outlookTokenExpiry");

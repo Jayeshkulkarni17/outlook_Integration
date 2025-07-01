@@ -23,25 +23,56 @@ const TodaysMeetings = ({ accountId }) => {
   };
 
   // Check authentication status and refresh token if needed
+  // Update the checkAuthStatus function
   const checkAuthStatus = async () => {
-    const refreshToken = localStorage.getItem("outlookRefreshToken");
-    const accessToken = localStorage.getItem("outlookAccessToken");
-    const tokenExpiry = localStorage.getItem("outlookTokenExpiry");
+    try {
+      const response = await fetch("/api/auth/status", {
+        credentials: "include", // Important for receiving cookies
+      });
 
-    if (!refreshToken) {
-      return { isAuthenticated: false };
-    }
+      if (!response.ok) {
+        throw new Error("Failed to check auth status");
+      }
 
-    if (!accessToken || isTokenExpired(tokenExpiry)) {
-      try {
-        const newAccessToken = await refreshAccessToken();
-        return { isAuthenticated: true, accessToken: newAccessToken };
-      } catch (error) {
+      const { isAuthenticated, accessToken, tokenExpiry } =
+        await response.json();
+
+      if (!isAuthenticated) {
         return { isAuthenticated: false };
       }
-    }
 
-    return { isAuthenticated: true, accessToken };
+      if (isTokenExpired(tokenExpiry)) {
+        await refreshAccessToken();
+        // After refresh, we need to check status again
+        const newResponse = await fetch("/api/auth/status", {
+          credentials: "include",
+        });
+        const newData = await newResponse.json();
+        return { isAuthenticated: true, accessToken: newData.accessToken };
+      }
+
+      return { isAuthenticated: true, accessToken };
+    } catch (error) {
+      console.error("Error checking auth status:", error);
+      return { isAuthenticated: false };
+    }
+  };
+
+  // Update the logout handler
+  const handleLogout = () => {
+    // Clear cookies via API
+    fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    }).then(() => {
+      setShowCredentialsButton(true);
+      setMeetings([]);
+    });
+
+    // Also redirect to Microsoft logout
+    window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(
+      "http://localhost:3000"
+    )}`;
   };
 
   // Fetch all meetings for today
@@ -102,24 +133,44 @@ const TodaysMeetings = ({ accountId }) => {
       console.log("URL Params:", { urlaccessToken, refreshToken, expiresIn });
 
       if (urlaccessToken && refreshToken && expiresIn) {
-        const expiryTime = Date.now() + (parseInt(expiresIn) - 300) * 1000;
+        // Instead of storing in localStorage, we'll send to an API endpoint
+        // that will set the HTTP-only cookies
+        try {
+          const response = await fetch("/api/auth/set-tokens", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              accessToken: urlaccessToken,
+              refreshToken,
+              expiresIn,
+            }),
+            credentials: "include", // Important for cookies
+          });
 
-        
+          if (!response.ok) {
+            throw new Error("Failed to set tokens");
+          }
 
-        localStorage.setItem("outlookAccessToken", urlaccessToken);
-        localStorage.setItem("outlookRefreshToken", refreshToken);
-        localStorage.setItem("outlookTokenExpiry", expiryTime.toString());
-
-        // Clean up URL
-        window.location.hash = "";
+          // Clean up URL
+          window.location.hash = "";
+        } catch (error) {
+          console.error("Error setting tokens:", error);
+        }
       }
 
-      // Check authentication status
-      const { isAuthenticated } = await checkAuthStatus();
-      setShowCredentialsButton(!isAuthenticated);
+      // Check authentication status via API
+      try {
+        const authStatus = await checkAuthStatus();
+        setShowCredentialsButton(!authStatus.isAuthenticated);
 
-      if (isAuthenticated) {
-        await fetchAllMeetings();
+        if (authStatus.isAuthenticated) {
+          await fetchAllMeetings();
+        }
+      } catch (error) {
+        console.error("Error checking auth status:", error);
+        setShowCredentialsButton(true);
       }
     };
 
@@ -128,16 +179,32 @@ const TodaysMeetings = ({ accountId }) => {
     // Set up periodic token check
     const intervalId = setInterval(async () => {
       console.log("Running background token check...");
-      const tokenExpiry = localStorage.getItem("outlookTokenExpiry");
-      if (isTokenExpired(tokenExpiry)) {
-        try {
-          console.log("Token expired or about to expire, refreshing...");
-          await refreshAccessToken();
-          await fetchAllMeetings();
-        } catch (error) {
-          console.error("Background refresh failed:", error);
-          setShowCredentialsButton(true);
+
+      try {
+        // Get token expiry from API instead of localStorage
+        const statusResponse = await fetch("/api/auth/status", {
+          credentials: "include",
+        });
+
+        if (!statusResponse.ok) {
+          throw new Error("Failed to check token status");
         }
+
+        const { tokenExpiry } = await statusResponse.json();
+
+        if (isTokenExpired(tokenExpiry)) {
+          try {
+            console.log("Token expired or about to expire, refreshing...");
+            await refreshAccessToken();
+            await fetchAllMeetings();
+          } catch (error) {
+            console.error("Background refresh failed:", error);
+            setShowCredentialsButton(true);
+          }
+        }
+      } catch (error) {
+        console.error("Error in background token check:", error);
+        setShowCredentialsButton(true);
       }
     }, 5 * 60 * 1000); // 5 minutes
 
@@ -156,17 +223,6 @@ const TodaysMeetings = ({ accountId }) => {
 
   const handleLogin = () => {
     window.location.href = "/api/auth/initiatelogin";
-  };
-
-  const handleLogout = () => {
-    window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(
-      "http://localhost:3000"
-    )}`;
-    localStorage.removeItem("outlookAccessToken");
-    localStorage.removeItem("outlookRefreshToken");
-    localStorage.removeItem("outlookTokenExpiry");
-    setShowCredentialsButton(true);
-    setMeetings([]);
   };
 
   return (
